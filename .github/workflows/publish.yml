@@ -55,7 +55,7 @@ jobs:
   -H "User-Agent: rbxcloud/ci" \
   -H "RBX-Source: GitHubActions" \
   -H "RBX-Client-Build: Rojo-CI" \
-            -X POST "https://apis.roblox.com/universes/v1/places/${PLACE_ID}/versions?versionType=Published" \
+            -X POST "https://apis.roblox.com/universes/v1/places//versions?versionType=Published&versionDescription=CI" \
             -H "x-api-key: ${ROBLOX_API_KEY}" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @build/RobloxSoccer.rbxlx)
