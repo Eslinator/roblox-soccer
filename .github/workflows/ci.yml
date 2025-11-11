@@ -20,7 +20,7 @@ jobs:
 
 
       - name: Selene Lint
-        run: selene src --allow-warnings
+        run: selene src
       - name: Stylua Format Check
         run: stylua --check src
 
