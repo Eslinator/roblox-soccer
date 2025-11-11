@@ -1,37 +1,38 @@
 name: CI
+
 on:
   pull_request:
+  push:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
-  build:
+  lint-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install Rojo (find & install)
+      - name: Install Aftman
+        uses: ok-nick/setup-aftman@v0.4.2
+
+      - name: Pin tools
         run: |
-          set -euxo pipefail
-          ROJO_VERSION=7.6.1
-          TMP="$(mktemp -d)"
-          cd "$TMP"
-          curl -fsSL -o rojo.zip "https://github.com/rojo-rbx/rojo/releases/download/v${ROJO_VERSION}/rojo-${ROJO_VERSION}-linux-x86_64.zip"
-          sudo apt-get update -y
-          sudo apt-get install -y unzip
-          unzip -o rojo.zip
-          ROJO_BIN="$(find . -type f -name rojo -perm -u+x | head -n1)"
-          sudo install -m 755 "$ROJO_BIN" /usr/local/bin/rojo
-          rojo --version
+          echo "[tools]" > aftman.toml
+          echo "rojo = \"rojo-rbx/rojo@7.6.1\"" >> aftman.toml
+          echo "rbxcloud = \"Sleitnick/rbxcloud@0.17.0\"" >> aftman.toml
+          echo "selene = \"Kampfkarren/selene@0.26.1\"" >> aftman.toml
+          # NOTE: Stylua temporarily disabled pending Luau-capable build
+          # echo "stylua = \"JohnnyMorganz/stylua@0.20.2\"" >> aftman.toml
+          aftman install
 
-      - name: Prepare build dir
-        run: mkdir -p build
+      - name: Selene Lint
+        run: selene src
 
-      - name: Build place
-        run: rojo build -o build/RobloxSoccer.rbxlx
+      - name: Rojo Build
+        run: rojo build -o out.rbxlx default.project.json
 
-      - name: Upload artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: place
-          path: build/RobloxSoccer.rbxlx
+          path: out.rbxlx
