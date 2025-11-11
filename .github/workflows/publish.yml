@@ -22,9 +22,9 @@ concurrency:
 
 jobs:
   publish:
+    timeout-minutes: 60
     name: publish
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     env:
       ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
       UNIVERSE_ID:    ${{ vars.UNIVERSE_ID }}
