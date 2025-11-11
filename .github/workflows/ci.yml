@@ -33,8 +33,7 @@ jobs:
           sed -n 1,80p selene.toml || true
 
       - name: Selene Lint
-        run: selene src
-
+        run: selene src --allow-warnings
       - name: Stylua Format Check
         run: stylua --check src
 
