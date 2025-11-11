@@ -19,7 +19,7 @@ jobs:
         run: |
           set -euxo pipefail
           sudo apt-get update -y
-          sudo apt-get install -y unzip curl jq ca-certificates golang
+          sudo apt-get install -y unzip curl jq ca-certificates
 
       - name: Install Rojo (latest)
         run: |
@@ -34,34 +34,30 @@ jobs:
           sudo install -m 755 "$ROJO_BIN" /usr/local/bin/rojo
           rojo --version
 
-      - name: Install rbxcloud (build from source)
-        run: |
-          set -euxo pipefail
-          GOBIN="$HOME/go/bin" GOPATH="$HOME/go" go install github.com/Sleitnick/rbxcloud/cmd/rbxcloud@latest
-          sudo install -m 755 "$HOME/go/bin/rbxcloud" /usr/local/bin/rbxcloud
-          rbxcloud --version
-
       - name: Build place
         run: |
           set -euxo pipefail
           mkdir -p build
           rojo build -o build/RobloxSoccer.rbxlx
 
-      - name: Publish to Roblox (Open Cloud)
+      # LIVE publish only when channel=live or a v* tag is pushed
+      - name: Publish to Roblox (Open Cloud via HTTP)
         if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.channel == 'live') || startsWith(github.ref, 'refs/tags/v') }}
         env:
           ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
-          UNIVERSE_ID: ${{ vars.UNIVERSE_ID }}
           PLACE_ID: ${{ vars.PLACE_ID }}
         run: |
           set -euxo pipefail
-          rbxcloud experience publish \
-            --api-key "$ROBLOX_API_KEY" \
-            --universe-id "$UNIVERSE_ID" \
-            --place-id "$PLACE_ID" \
-            --file "build/RobloxSoccer.rbxlx" \
-            --universe-asset-type Place \
-            --publish-policy Latest
+          # POST binary .rbxlx to the Open Cloud "Upload Place Version" endpoint
+          # Docs: POST https://apis.roblox.com/universes/v1/places/{placeId}/versions?versionType=Published
+          HTTP_CODE=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
+            -X POST "https://apis.roblox.com/universes/v1/places/${PLACE_ID}/versions?versionType=Published" \
+            -H "x-api-key: ${ROBLOX_API_KEY}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @build/RobloxSoccer.rbxlx)
+          echo "HTTP ${HTTP_CODE}"
+          cat /tmp/resp.json || true
+          test "${HTTP_CODE}" = "200" -o "${HTTP_CODE}" = "202"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
