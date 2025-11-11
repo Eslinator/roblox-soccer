@@ -1,0 +1,13 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type":"git_ops","ops": [
+      { "op":"ensure_repo" },
+      { "op":"create_branch","name":"feat/tweak-hud","base":"main","if_exists":"checkout" },
+      { "op":"add","paths":[ "aftman.toml" ]},
+      { "op":"commit","message":"ci: remove Stylua from aftman.toml so setup-aftman doesn’t fail" },
+      { "op":"status" }
+    ]},
+    { "type":"run","cmd":"git push -u origin feat/tweak-hud" }
+  ]
+}

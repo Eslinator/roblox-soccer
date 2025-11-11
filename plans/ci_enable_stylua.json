@@ -1,0 +1,15 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type":"write_files","files": {
+      ".github/workflows/ci.yml": {
+        "encoding":"utf8",
+        "content":"name: CI\n\non:\n  pull_request:\n  push:\n    branches: [ main ]\n\njobs:\n  lint-build:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout\n        uses: actions/checkout@v4\n\n      - name: Install Aftman\n        uses: ok-nick/setup-aftman@v0.4.2\n\n      - name: Pin tools\n        run: |\n          echo \"[tools]\" > aftman.toml\n          echo \"rojo = \\\"rojo-rbx/rojo@7.6.1\\\"\" >> aftman.toml\n          echo \"rbxcloud = \\\"Sleitnick/rbxcloud@0.17.0\\\"\" >> aftman.toml\n          echo \"selene = \\\"Kampfkarren/selene@0.26.1\\\"\" >> aftman.toml\n          echo \"stylua = \\\"JohnnyMorganz/stylua@0.20.0\\\"\" >> aftman.toml\n          aftman install --no-trust-check\n\n      - name: Selene Lint\n        run: selene src\n\n      - name: Stylua Format Check\n        run: stylua --check src\n\n      - name: Rojo Build\n        run: rojo build -o out.rbxlx default.project.json\n\n      - name: Upload Artifact\n        uses: actions/upload-artifact@v4\n        with:\n          name: place\n          path: out.rbxlx\n"
+      }
+    }},
+    { "type":"validate","checks": [
+      { "op":"text_contains","path":".github/workflows/ci.yml","substr":"Stylua Format Check" },
+      { "op":"text_contains","path":".github/workflows/ci.yml","substr":"stylua@0.20.0" }
+    ]}
+  ]
+}

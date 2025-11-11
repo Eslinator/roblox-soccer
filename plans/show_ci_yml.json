@@ -1,0 +1,6 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type":"run","cmd":"gh api repos/:owner/:repo/contents/.github/workflows/ci.yml?ref=feat/tweak-hud | jq -r .content | base64 --decode | sed -n '1,120p'" }
+  ]
+}

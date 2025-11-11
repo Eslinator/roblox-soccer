@@ -1,0 +1,7 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type":"run","cmd":"gh pr view 2 --json number,state,headRefName,baseRefName,url" },
+    { "type":"run","cmd":"gh pr checks 2 || true" }
+  ]
+}

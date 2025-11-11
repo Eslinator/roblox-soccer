@@ -1,0 +1,10 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type":"run","cmd":"gh workflow list" },
+    { "type":"run","cmd":"gh workflow view CI --json name,state,path -q '.name+\" state=\"+.state+\" path=\"+.path' || true" },
+    { "type":"run","cmd":"gh api repos/:owner/:repo/actions/permissions | jq -r '.enabled, .can_approve_pull_request_reviews' || true" },
+    { "type":"run","cmd":"gh api repos/:owner/:repo/contents/.github/workflows/ci.yml?ref=main | jq -r .path || true" },
+    { "type":"run","cmd":"gh api repos/:owner/:repo/contents/.github/workflows/ci.yml?ref=feat/tweak-hud | jq -r .path || true" }
+  ]
+}
