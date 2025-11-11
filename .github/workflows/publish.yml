@@ -57,10 +57,11 @@ jobs:
           echo "REAL_UNIVERSE_ID=${REAL_UID}"
           test "$REAL_UID" = "$UNIVERSE_ID"
 
-            - name: Build place
-        run: |
-          mkdir -p build
-          rojo build -o build/RobloxSoccer.rbxlx
+      - name: Prepare build folder
+        run: mkdir -p build
+
+      - name: Build place
+        run: rojo build -o build/RobloxSoccer.rbxlx
 
       - name: Publish to Roblox (Open Cloud via HTTP, with retries)
         if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.channel == 'live') || startsWith(github.ref, 'refs/tags/v') }}
