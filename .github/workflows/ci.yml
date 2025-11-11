@@ -24,6 +24,16 @@ jobs:
           echo "stylua = \"JohnnyMorganz/stylua@0.20.0\"" >> aftman.toml
           aftman install --no-trust-check
 
+<<<<<<< HEAD
+=======
+      - name: Debug Selene/Stylua env
+        run: |
+          selene --version || true
+          stylua --version || true
+          echo "--- selene.toml (pwd) ---"
+          ls -la || true
+          sed -n 1,80p selene.toml || true
+>>>>>>> origin/main
 
       - name: Selene Lint
         run: selene src --allow-warnings
