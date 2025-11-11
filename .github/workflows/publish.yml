@@ -16,8 +16,6 @@ on:
         type: choice
         options: [dry, live]
 
-  contents: read
-
 concurrency:
   group: ${{ github.workflow }}-${{ vars.PLACE_ID }}
   cancel-in-progress: false
