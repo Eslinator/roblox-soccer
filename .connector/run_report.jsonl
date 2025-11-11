@@ -69,6 +69,7 @@
 {"step": 1, "type": "run", "cmd": "printf '%s' '{\"required_status_checks\":{\"strict\":true,\"contexts\":[\"publish\",\"lint-build\"]},\"enforce_admins\":true,\"required_pull_request_reviews\":{\"required_approving_review_count\":1,\"dismiss_stale_reviews\":true},\"restrictions\":null}' | gh api -X PUT repos/:owner/:repo/branches/main/protection -H 'Accept: application/vnd.github+json' --input -", "code": 0, "ms": 449}
 {"step": 2, "type": "run", "cmd": "gh api repos/:owner/:repo/branches/main/protection -H 'Accept: application/vnd.github+json' | jq '.required_status_checks'", "code": 0, "ms": 303}
 {"step": 1, "type": "run", "cmd": "git push origin main", "code": 0, "ms": 0}
+<<<<<<< HEAD
 {"step": 1, "type": "run", "cmd": "gh pr view 2 --json number,state,headRefName,baseRefName,url", "code": 0, "ms": 502}
 {"step": 2, "type": "run", "cmd": "gh pr checks 2 || true", "code": 0, "ms": 652}
 {"step": 1, "type": "run", "cmd": "gh workflow list", "code": 0, "ms": 278}
@@ -97,3 +98,5 @@
 {"step": 3, "type": "run", "cmd": "selene src || true", "code": 0, "ms": 410}
 {"step": 2, "type": "run", "cmd": "git push -u origin feat/tweak-hud", "code": 0, "ms": 752}
 {"step": 3, "type": "run", "cmd": "gh pr checks 2 --watch || true", "code": 0, "ms": 610}
+=======
+>>>>>>> origin/main

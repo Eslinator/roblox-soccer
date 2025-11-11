@@ -15,9 +15,14 @@ jobs:
       - name: Install Aftman
         uses: ok-nick/setup-aftman@v0.4.2
 
-      - name: Install tools
-        run: aftman install --no-trust-check
-
+      - name: Pin tools
+        run: |
+          echo "[tools]" > aftman.toml
+          echo "rojo = \"rojo-rbx/rojo@7.6.1\"" >> aftman.toml
+          echo "rbxcloud = \"Sleitnick/rbxcloud@0.17.0\"" >> aftman.toml
+          echo "selene = \"Kampfkarren/selene@0.26.1\"" >> aftman.toml
+          echo "stylua = \"JohnnyMorganz/stylua@0.20.0\"" >> aftman.toml
+          aftman install --no-trust-check
 
       - name: Selene Lint
         run: selene src --allow-warnings
