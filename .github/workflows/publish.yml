@@ -5,22 +5,31 @@ on:
     inputs:
       channel:
         description: "dry or live"
-        required: false
-        default: "live"
+        required: true
+        default: "dry"
+        type: choice
+        options: [dry, live]
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 permissions:
   contents: read
 
-env:
-  UNIVERSE_ID: ${{ vars.UNIVERSE_ID }}
-  PLACE_ID:    ${{ vars.PLACE_ID }}
+concurrency:
+  group: ${{ github.workflow }}-${{ vars.PLACE_ID }}
+  cancel-in-progress: false
 
 jobs:
   publish:
+    name: publish
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+      UNIVERSE_ID:    ${{ vars.UNIVERSE_ID }}
+      PLACE_ID:       ${{ vars.PLACE_ID }}
+      CHANNEL:        ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.channel || 'live' }}
 
     steps:
       - name: Checkout
@@ -30,32 +39,27 @@ jobs:
         run: |
           set -euxo pipefail
           sudo apt-get update -y
-          sudo apt-get install -y jq curl unzip
+          sudo apt-get install -y curl unzip jq
 
       - name: Install Rojo (latest)
         run: |
           set -euxo pipefail
-          ROJO_VERSION=7.6.1
-          curl -fsSL -o rojo.zip "https://github.com/rojo-rbx/rojo/releases/download/v${ROJO_VERSION}/rojo-${ROJO_VERSION}-linux-x86_64.zip"
-          sudo unzip -o rojo.zip -d /usr/local/bin
-          sudo chmod +x /usr/local/bin/rojo
+          V="7.6.1"
+          curl -fsSL -o rojo.zip "https://github.com/rojo-rbx/rojo/releases/download/v${V}/rojo-${V}-linux-x86_64.zip"
+          unzip -o rojo.zip
+          sudo mv rojo /usr/local/bin/rojo
           rojo --version
 
-      # Keep this sanity check light: confirm the PLACE maps to the same UNIVERSE.
-      - name: Sanity check (IDs only)
-        if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.channel == 'live') || startsWith(github.ref, 'refs/tags/v') }}
-        env:
-          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+      - name: Install rbxcloud (latest)
         run: |
           set -euxo pipefail
-          echo "UNIVERSE_ID=${UNIVERSE_ID}  PLACE_ID=${PLACE_ID}"
-          CODE=$(curl -sS -o /tmp/u.json -w "%{http_code}" \
-            -H "x-api-key: ${ROBLOX_API_KEY}" -H "Accept: application/json" \
-            "https://apis.roblox.com/universes/v1/places/${PLACE_ID}/universe")
-          test "$CODE" = "200"
-          REAL_UID=$(jq -r .universeId /tmp/u.json)
-          echo "REAL_UNIVERSE_ID=${REAL_UID}"
-          test "$REAL_UID" = "$UNIVERSE_ID"
+          curl -fsSL https://api.github.com/repos/Sleitnick/rbxcloud/releases/latest \
+            | jq -r '.assets[] | select(.name|test("linux.*(x86_64|amd64).*(zip|tar\\.gz)$")) | .browser_download_url' \
+            | head -n1 | xargs -I{} curl -fsSL -o rbxcloud.tgz {}
+          tar -xzf rbxcloud.tgz || unzip -o rbxcloud.tgz || true
+          BIN="$(find . -maxdepth 2 -type f -name rbxcloud | head -n1)"
+          sudo mv "$BIN" /usr/local/bin/rbxcloud
+          rbxcloud --version
 
       - name: Prepare build folder
         run: mkdir -p build
@@ -63,53 +67,54 @@ jobs:
       - name: Build place
         run: rojo build -o build/RobloxSoccer.rbxlx
 
-      - name: Publish to Roblox (Open Cloud via HTTP, with retries)
-        if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.channel == 'live') || startsWith(github.ref, 'refs/tags/v') }}
-        env:
-          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+      - name: Sanity check (IDs only)
         run: |
-          set -u  # no -e here; we handle errors manually for retries
+          set -euxo pipefail
+          test -n "${UNIVERSE_ID}"
+          test -n "${PLACE_ID}"
 
-          URL="https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published&versionDescription=ci:${GITHUB_SHA::7}"
+      - name: Publish to Roblox (Open Cloud with retries)
+        if: ${{ env.CHANNEL == 'live' || startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          set -u  # we handle errors manually (no -e)
+          FILE="build/RobloxSoccer.rbxlx"
 
-          attempt=1
-          max=6
-          backoff=4
-
-          while [ $attempt -le $max ]; do
-            echo "Attempt $attempt/$max"
-
-            HTTP_CODE=$(curl -sS -o /tmp/resp.json -w '%{http_code}' -X POST "$URL" \
+          attempt() {
+            curl -sS -o /tmp/resp.json -w '%{http_code}' -X POST \
               -H "x-api-key: ${ROBLOX_API_KEY}" \
               -H "Accept: application/json" \
               -H "User-Agent: rbxcloud/ci" \
               -H "RBX-Source: GitHubActions" \
+              -H "RBX-Client-Build: Rojo-CI" \
               -H "Content-Type: application/octet-stream" \
-              --data-binary @build/RobloxSoccer.rbxlx || echo "000")
+              --data-binary @"${FILE}" \
+              "https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published&versionDescription=ci:${GITHUB_SHA::7},run:${GITHUB_RUN_ID}"
+          }
 
-            echo "HTTP $HTTP_CODE"
+          BACKOFF=(5 15 30 60 90 120 180 240 300 360 420 480)
+
+          for i in $(seq 1 ${#BACKOFF[@]}); do
+            echo "Attempt ${i}/${#BACKOFF[@]} …"
+            CODE=$(attempt)
+            echo "HTTP ${CODE}"
             cat /tmp/resp.json || true
 
-            # Success: 200 OK or 202 Accepted
-            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "202" ]; then
+            if [ "$CODE" = "200" ] || [ "$CODE" = "202" ]; then
+              echo "✅ Publish accepted"
               exit 0
             fi
 
-            # Known transient buckets: 000 transport, 409 conflict, 429 too many, or any 5xx
-            if [ "$HTTP_CODE" = "000" ] || [ "$HTTP_CODE" = "409" ] || [ "$HTTP_CODE" = "429" ] || [[ "$HTTP_CODE" =~ ^5 ]]; then
-              echo "Transient error ($HTTP_CODE). Sleeping ${backoff}s then retrying…"
-              sleep "$backoff"
-              backoff=$(( backoff * 2 ))
-              attempt=$(( attempt + 1 ))
+            if [ "$CODE" = "409" ] || [ "$CODE" = "000" ]; then
+              echo "Transient (${CODE}). Backing off ${BACKOFF[$((i-1))]}s…"
+              sleep "${BACKOFF[$((i-1))]}"
               continue
             fi
 
-            # Hard failure: stop immediately
-            echo "Hard failure $HTTP_CODE. Not retrying."
+            echo "❌ Hard failure ${CODE}. Not retrying."
             exit 1
           done
 
-          echo "Failed to publish after $max attempts."
+          echo "❌ Exhausted retries."
           exit 1
 
       - name: Upload artifact
