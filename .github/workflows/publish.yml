@@ -67,21 +67,53 @@ jobs:
           UNIVERSE_ID:   ${{ vars.UNIVERSE_ID }}
           PLACE_ID:      ${{ vars.PLACE_ID }}
         run: |
-          set -euxo pipefail
-          URL="https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published&versionDescription=CI"
+          set -u  # no -e here; we handle errors manually for retries
+          DESC="ci:${GITHUB_SHA::7}, run:${GITHUB_RUN_ID}"
+          URL="https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published&versionDescription=${DESC}"
+
           echo "POST $URL"
-          HTTP_CODE=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
-            -X POST "$URL" \
-            -H "x-api-key: ${ROBLOX_API_KEY}" \
-            -H "Accept: application/json" \
-            -H "User-Agent: rbxcloud/ci" \
-            -H "RBX-Source: GitHubActions" \
-            -H "RBX-Client-Build: Rojo-CI" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @build/RobloxSoccer.rbxlx)
-          echo "HTTP ${HTTP_CODE}"
-          cat /tmp/resp.json || true
-          test "${HTTP_CODE}" = "200" -o "${HTTP_CODE}" = "202"
+          ATTEMPTS=6
+          DELAY=2
+
+          for TRY in $(seq 1 $ATTEMPTS); do
+            echo "::group::Attempt $TRY"
+            CODE=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST "$URL" \
+              -H "x-api-key: ${ROBLOX_API_KEY}" \
+              -H "Accept: application/json" \
+              -H "User-Agent: rbxcloud/ci" \
+              -H "RBX-Source: GitHubActions" \
+              -H "RBX-Client-Build: Rojo-CI" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @build/RobloxSoccer.rbxlx || echo 000)
+
+            echo "HTTP $CODE"
+            cat /tmp/resp.json || true
+            echo "::endgroup::"
+
+            # success
+            if [ "$CODE" = "200" ] || [ "$CODE" = "202" ]; then
+              echo "✅ Publish succeeded."
+              exit 0
+            fi
+
+            # transient: 409 busy, 429 rate, or any 5xx → backoff + retry
+            case "$CODE" in
+              409|429|5??)
+                JITTER=$((RANDOM % 3))
+                SLEEP=$((DELAY + JITTER))
+                echo "Transient $CODE; retrying in ${SLEEP}s..."
+                sleep "$SLEEP"
+                DELAY=$((DELAY * 2))
+                ;;
+              *)
+                echo "❌ Hard failure $CODE. Not retrying."
+                exit 1
+                ;;
+            esac
+          done
+
+          echo "❌ Gave up after $ATTEMPTS attempts."
+          exit 1
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
