@@ -109,3 +109,4 @@ jobs:
           name: place
           path: build/RobloxSoccer.rbxlx
 permissions:
+  contents: read
