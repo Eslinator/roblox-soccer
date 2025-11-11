@@ -51,6 +51,10 @@ jobs:
           # POST binary .rbxlx to the Open Cloud "Upload Place Version" endpoint
           # Docs: POST https://apis.roblox.com/universes/v1/places/{placeId}/versions?versionType=Published
           HTTP_CODE=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
+  -H "Accept: application/json" \
+  -H "User-Agent: rbxcloud/ci" \
+  -H "RBX-Source: GitHubActions" \
+  -H "RBX-Client-Build: Rojo-CI" \
             -X POST "https://apis.roblox.com/universes/v1/places/${PLACE_ID}/versions?versionType=Published" \
             -H "x-api-key: ${ROBLOX_API_KEY}" \
             -H "Content-Type: application/octet-stream" \
