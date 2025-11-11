@@ -1,4 +1,2 @@
 std = "roblox"
-exclude = [ "Packages/**" ]
-[files]
-src = true
+exclude = ["Packages/**", "DevPackages/**"]
