@@ -3,19 +3,29 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Aftman
+
+      - name: Install Rojo (direct)
         run: |
-          curl -fsSL https://raw.githubusercontent.com/LPGhatguy/aftman/main/scripts/install.sh | bash
-          echo "$HOME/.aftman/bin" >> $GITHUB_PATH
-      - name: Install tools
-        run: aftman install
+          set -euo pipefail
+          ROJO_VERSION=7.6.1
+          curl -fsSL -o rojo.zip "https://github.com/rojo-rbx/rojo/releases/download/v${ROJO_VERSION}/rojo-${ROJO_VERSION}-linux-x86_64.zip"
+          sudo apt-get update -y
+          sudo apt-get install -y unzip
+          mkdir -p "$HOME/.local/bin"
+          unzip -o rojo.zip -d "$HOME/.local/bin"
+          chmod +x "$HOME/.local/bin/rojo"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          rojo --version
+
       - name: Build place
         run: rojo build -o build/RobloxSoccer.rbxlx
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
