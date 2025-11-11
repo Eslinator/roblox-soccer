@@ -1,0 +1,7 @@
+build/
+Packages/
+.tmp/
+.DS_Store
+*.rbxl
+*.rbxlx
+*.rbxm
