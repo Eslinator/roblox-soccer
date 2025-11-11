@@ -1,3 +1,7 @@
-{ "dry_run": false, "steps": [
-  { "type":"run", "cmd":"selene src || true" }
-]}
+{
+  "dry_run": false,
+  "steps": [
+    { "type":"run","cmd":"selene --version || true" },
+    { "type":"run","cmd":"selene src || true" }
+  ]
+}
