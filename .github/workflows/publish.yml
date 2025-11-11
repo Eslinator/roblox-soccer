@@ -7,7 +7,7 @@ on:
         required: false
         default: "dry"
   push:
-    tags: ['v*']  # tagging v0.1.0 will do a live publish
+    tags: ['v*']  # any vX.Y.Z tag triggers live publish
 
 jobs:
   publish:
@@ -16,30 +16,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Install Rojo (same robust method as CI)
-      - name: Install Rojo
+      - name: Install deps
         run: |
           set -euxo pipefail
-          ROJO_VERSION=7.6.1
-          TMP="$(mktemp -d)"
-          cd "$TMP"
-          curl -fsSL -o rojo.zip "https://github.com/rojo-rbx/rojo/releases/download/v${ROJO_VERSION}/rojo-${ROJO_VERSION}-linux-x86_64.zip"
           sudo apt-get update -y
-          sudo apt-get install -y unzip
+          sudo apt-get install -y unzip jq curl
+
+      - name: Install Rojo (latest for Linux x86_64)
+        run: |
+          set -euxo pipefail
+          ROJO_URL="$(curl -fsSL https://api.github.com/repos/rojo-rbx/rojo/releases/latest \
+            | jq -r '.assets[] | select(.name | test("linux-x86_64\\.zip$")) | .browser_download_url' | head -n1)"
+          test -n "$ROJO_URL"
+          TMP="$(mktemp -d)"; cd "$TMP"
+          curl -fsSL -o rojo.zip "$ROJO_URL"
           unzip -o rojo.zip
           ROJO_BIN="$(find . -type f -name rojo -perm -u+x | head -n1)"
           sudo install -m 755 "$ROJO_BIN" /usr/local/bin/rojo
           rojo --version
 
-      # Install rbxcloud (Open Cloud CLI)
-      - name: Install rbxcloud
+      - name: Install rbxcloud (latest for Linux x86_64)
         run: |
           set -euxo pipefail
-          RBC_VERSION=0.17.0
-          TMP="$(mktemp -d)"
-          cd "$TMP"
-          curl -fsSL -o rbxcloud.zip "https://github.com/Sleitnick/rbxcloud/releases/download/v${RBC_VERSION}/rbxcloud-${RBC_VERSION}-linux-x86_64.zip"
-          sudo apt-get install -y unzip
+          RBC_URL="$(curl -fsSL https://api.github.com/repos/Sleitnick/rbxcloud/releases/latest \
+            | jq -r '.assets[] | select(.name | test("linux-x86_64\\.zip$")) | .browser_download_url' | head -n1)"
+          test -n "$RBC_URL"
+          TMP="$(mktemp -d)"; cd "$TMP"
+          curl -fsSL -o rbxcloud.zip "$RBC_URL"
           unzip -o rbxcloud.zip
           RBC_BIN="$(find . -type f -name rbxcloud -perm -u+x | head -n1)"
           sudo install -m 755 "$RBC_BIN" /usr/local/bin/rbxcloud
@@ -47,6 +50,7 @@ jobs:
 
       - name: Build place
         run: |
+          set -euxo pipefail
           mkdir -p build
           rojo build -o build/RobloxSoccer.rbxlx
 
@@ -65,6 +69,7 @@ jobs:
             --file "build/RobloxSoccer.rbxlx" \
             --universe-asset-type Place \
             --publish-policy Latest
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
