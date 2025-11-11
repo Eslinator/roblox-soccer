@@ -1,6 +1,0 @@
-{
-  "dry_run": false,
-  "steps": [
-    { "type":"run","cmd":"gh run view --job 55110653358 --log || true" }
-  ]
-}

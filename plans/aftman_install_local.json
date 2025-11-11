@@ -1,8 +1,0 @@
-{
-  "dry_run": false,
-  "steps": [
-    { "type":"run","cmd":"aftman install || true" },
-    { "type":"run","cmd":"which stylua || true" },
-    { "type":"run","cmd":"stylua --version || true" }
-  ]
-}
