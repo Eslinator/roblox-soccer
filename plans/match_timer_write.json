@@ -1,0 +1,20 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type": "write_files",
+      "files": {
+        "src/ServerScriptService/Match/MatchManager.server.lua": {
+          "encoding": "utf8",
+          "content": "local ReplicatedStorage = game:GetService(\"ReplicatedStorage\")\n\nlocal REMOTES = ReplicatedStorage:FindFirstChild(\"Remotes\") or Instance.new(\"Folder\")\nREMOTES.Name = \"Remotes\"; REMOTES.Parent = ReplicatedStorage\n\nlocal MatchStateChanged = REMOTES:FindFirstChild(\"MatchStateChanged\") or Instance.new(\"RemoteEvent\")\nMatchStateChanged.Name = \"MatchStateChanged\"; MatchStateChanged.Parent = REMOTES\n\nlocal StateFolder = ReplicatedStorage:FindFirstChild(\"MatchState\") or Instance.new(\"Folder\")\nStateFolder.Name = \"MatchState\"; StateFolder.Parent = ReplicatedStorage\n\nlocal function getValue(name, class, initial)\n\tlocal v = StateFolder:FindFirstChild(name)\n\tif not v then\n\t\tv = Instance.new(class)\n\t\tv.Name = name\n\t\tif class == \"IntValue\" then v.Value = initial or 0 end\n\t\tif class == \"StringValue\" then v.Value = initial or \"Init\" end\n\t\tStateFolder[name] = v; v.Parent = StateFolder\n\tend\n\treturn v\nend\n\nlocal TimeLeft = getValue(\"TimeLeft\",\"IntValue\", 180) -- 3 minutes\nlocal HomeScore = getValue(\"HomeScore\",\"IntValue\", 0)\nlocal AwayScore = getValue(\"AwayScore\",\"IntValue\", 0)\nlocal Phase = getValue(\"Phase\",\"StringValue\", \"Init\")\n\nlocal running = false\n\nlocal function setPhase(p)\n\tPhase.Value = p\n\tMatchStateChanged:FireAllClients({ phase = p, timeLeft = TimeLeft.Value, home = HomeScore.Value, away = AwayScore.Value })\n\tprint(\"[Match] Phase:\", p)\nend\n\nlocal function start()\n\trunning = true\n\tsetPhase(\"Playing\")\n\twhile running do\n\t\tif TimeLeft.Value > 0 then\n\t\t\tTimeLeft.Value -= 1\n\t\t\tif TimeLeft.Value % 10 == 0 then\n\t\t\t\tMatchStateChanged:FireAllClients({ phase = Phase.Value, timeLeft = TimeLeft.Value })\n\t\t\t\tprint(\"[Match] TimeLeft:\", TimeLeft.Value)\n\t\t\tend\n\t\t\twait(1)\n\t\telse\n\t\t\tsetPhase(\"Finished\")\n\t\t\trunning = false\n\t\tend\n\tend\nend\n\n-- Autostart shortly after server boot\nspawn(function()\n\twait(2)\n\tstart()\nend)\n"
+        }
+      }
+    },
+    { "type": "validate",
+      "checks": [
+        { "op": "file_exists", "path": "src/ServerScriptService/Match/MatchManager.server.lua" },
+        { "op": "text_contains", "path": "src/ServerScriptService/Match/MatchManager.server.lua", "substr": "MatchStateChanged" },
+        { "op": "text_contains", "path": "src/ServerScriptService/Match/MatchManager.server.lua", "substr": "TimeLeft" }
+      ]
+    }
+  ]
+}

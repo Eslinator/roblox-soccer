@@ -1,0 +1,30 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type": "write_files",
+      "files": {
+        "src/ServerScriptService/Bot/BotAI.lua": {
+          "encoding": "utf8",
+          "content": "local Players = game:GetService(\"Players\")\nlocal RunService = game:GetService(\"RunService\")\nlocal ReplicatedStorage = game:GetService(\"ReplicatedStorage\")\nlocal Constants = require(ReplicatedStorage.Shared.Constants)\n\nlocal BotAI = {}\nBotAI.__index = BotAI\n\nlocal function getBall()\n\tlocal b = workspace:FindFirstChild(\"Ball\")\n\tif b and b:IsA(\"BasePart\") then return b end\n\treturn nil\nend\n\nlocal function distance(a: Vector3, b: Vector3)\n\treturn (a - b).Magnitude\nend\n\nfunction BotAI.new(model: Model)\n\tlocal self = setmetatable({}, BotAI)\n\tself.model = model\n\tself.hum = model:FindFirstChildOfClass(\"Humanoid\")\n\tself.root = model:FindFirstChild(\"HumanoidRootPart\")\n\tself._accum = 0\n\tself._retarget = 0\n\treturn self\nend\n\nfunction BotAI:step(dt)\n\tif not self.hum or not self.root then return end\n\tself._accum += dt\n\tself._retarget += dt\n\tif self._accum < Constants.BOT.TICK then return end\n\tself._accum = 0\n\n\tlocal ball = getBall()\n\tif not ball then return end\n\n\t-- Seek ball\n\tlocal botPos = self.root.Position\n\tlocal ballPos = ball.Position\n\tlocal dist = distance(botPos, ballPos)\n\n\t-- Move toward ball\n\tif dist > Constants.BOT.KICK_RANGE then\n\t\tself.hum.WalkSpeed = Constants.BOT.MAX_SPEED\n\t\tself.hum:MoveTo(ballPos)\n\t\treturn\n\tend\n\n\t-- Kick/dribble on contact range (server authority)\n\tlocal dir = (ballPos - botPos)\n\tif dir.Magnitude > 0 then dir = dir.Unit else return end\n\tlocal power = Constants.BOT.KICK_POWER\n\t-- Aim toward away goal (positive X)\n\tlocal goalDir = (Constants.AWAY_GOAL_POS - ballPos).Unit\n\tlocal impulse = (dir + goalDir) * (power)\n\tlocal lv = Instance.new(\"LinearVelocity\")\n\tlv.Name = \"BotKickLV\"\n\tlv.VectorVelocity = impulse\n\tlv.Attachment0 = nil\n\tlv.RelativeTo = Enum.ActuatorRelativeTo.World\n\tlv.MaxForce = math.huge\n\tlv.Parent = ball\n\tgame.Debris:AddItem(lv, 0.15)\nend\n\nreturn BotAI\n"
+        },
+        "src/ServerScriptService/Bot/BotController.server.lua": {
+          "encoding": "utf8",
+          "content": "local ServerStorage = game:GetService(\"ServerStorage\")\nlocal ReplicatedStorage = game:GetService(\"ReplicatedStorage\")\nlocal RunService = game:GetService(\"RunService\")\n\nlocal Constants = require(ReplicatedStorage.Shared.Constants)\nlocal BotAI = require(script.Parent.BotAI)\n\nlocal function ensureBot()\n\tlocal bot = workspace:FindFirstChild(\"SoccerBot\")\n\tif bot and bot:IsA(\"Model\") and bot:FindFirstChildOfClass(\"Humanoid\") then return bot end\n\t-- Spawn a simple R15 dummy\n\tbot = Instance.new(\"Model\")\n\tbot.Name = \"SoccerBot\"\n\tlocal hrp = Instance.new(\"Part\"); hrp.Name = \"HumanoidRootPart\"; hrp.Size = Vector3.new(2,2,1); hrp.Anchored = false; hrp.CanCollide = false; hrp.Parent = bot\n\tlocal hum = Instance.new(\"Humanoid\"); hum.Parent = bot\n\tbot.PrimaryPart = hrp\n\tbot.Parent = workspace\n\tbot:PivotTo(CFrame.new(0, 5, -10))\n\treturn bot\nend\n\nlocal bot = ensureBot()\nlocal ai = BotAI.new(bot)\n\nRunService.Heartbeat:Connect(function(dt)\n\tai:step(dt)\nend)\n\nprint(\"[Bot] BotController running (server authority)\")\n"
+        },
+        "src/ServerScriptService/Match/Ball.server.lua": {
+          "encoding": "utf8",
+          "content": "local function ensureBall()\n\tlocal ball = workspace:FindFirstChild(\"Ball\")\n\tif ball and ball:IsA(\"BasePart\") then return ball end\n\tball = Instance.new(\"Part\")\n\tball.Name = \"Ball\"\n\tball.Shape = Enum.PartType.Ball\n\tball.Size = Vector3.new(2,2,2)\n\tball.Material = Enum.Material.SmoothPlastic\n\tball.Color = Color3.fromRGB(245,245,245)\n\tball.Massless = false\n\tball.CanCollide = true\n\tball.CastShadow = true\n\tball.Position = Vector3.new(0, 6, 0)\n\tball.Parent = workspace\n\t-- Physics helpers\n\tlocal as = Instance.new(\"Attachment\"); as.Name = \"BallAttachment\"; as.Parent = ball\n\tlocal lv = Instance.new(\"LinearVelocity\"); lv.Name = \"DampenLV\"; lv.Attachment0 = as; lv.RelativeTo = Enum.ActuatorRelativeTo.World; lv.MaxForce = 0; lv.Parent = ball\n\treturn ball\nend\n\nlocal ball = ensureBall()\nprint(\"[Match] Ball ready at\", ball.Position)\n"
+        }
+      }
+    },
+    { "type": "validate",
+      "checks": [
+        { "op": "file_exists", "path": "src/ServerScriptService/Bot/BotAI.lua" },
+        { "op": "file_exists", "path": "src/ServerScriptService/Bot/BotController.server.lua" },
+        { "op": "file_exists", "path": "src/ServerScriptService/Match/Ball.server.lua" },
+        { "op": "text_contains", "path": "src/ServerScriptService/Bot/BotController.server.lua", "substr": "[Bot] BotController running" },
+        { "op": "text_contains", "path": "src/ServerScriptService/Bot/BotAI.lua", "substr": "BotAI.new" }
+      ]
+    }
+  ]
+}

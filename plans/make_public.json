@@ -1,0 +1,7 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type":"run", "cmd":"gh repo edit --visibility public --accept-visibility-change-consequences" },
+    { "type":"run", "cmd":"gh repo view --json isPrivate,visibility -q '.isPrivate as $p | .visibility + \" (private=\" + ($p|tostring) + \")\"' || true" }
+  ]
+}

@@ -1,0 +1,122 @@
+name: Publish
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "dry or live"
+        required: false
+        default: "live"
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          set -euxo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y unzip curl jq ca-certificates
+
+      - name: Install Rojo (latest)
+        run: |
+          set -euxo pipefail
+          ROJO_URL="$(curl -fsSL https://api.github.com/repos/rojo-rbx/rojo/releases/latest \
+            | jq -r '.assets[] | select(.name|test("linux.*(x86_64|amd64).*\\.zip$")) | .browser_download_url' | head -n1)"
+          test -n "$ROJO_URL"
+          TMP="$(mktemp -d)"; cd "$TMP"
+          curl -fsSL -o rojo.zip "$ROJO_URL"
+          unzip -o rojo.zip
+          ROJO_BIN="$(find . -type f -name rojo -perm -u+x | head -n1)"
+          sudo install -m 755 "$ROJO_BIN" /usr/local/bin/rojo
+          rojo --version
+
+      - name: Build place
+        run: |
+          set -euxo pipefail
+          mkdir -p build
+          rojo build -o build/RobloxSoccer.rbxlx
+
+      # Sanity: only verify that PLACE -> REAL_UNIVERSE_ID matches our UNIVERSE_ID
+      - name: Sanity check (IDs only)
+        if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.channel == 'live') || startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+          UNIVERSE_ID:   ${{ vars.UNIVERSE_ID }}
+          PLACE_ID:      ${{ vars.PLACE_ID }}
+        run: |
+          set -euxo pipefail
+          echo "UNIVERSE_ID=${UNIVERSE_ID}  PLACE_ID=${PLACE_ID}"
+          CODE=$(curl -sS -o /tmp/u.json -w "%{http_code}" \
+            -H "x-api-key: ${ROBLOX_API_KEY}" -H "Accept: application/json" \
+            "https://apis.roblox.com/universes/v1/places/${PLACE_ID}/universe")
+          echo "Universe-by-place HTTP ${CODE}"; cat /tmp/u.json || true
+          test "${CODE}" = "200"
+          REAL_UID=$(jq -r .universeId /tmp/u.json)
+          echo "REAL_UNIVERSE_ID=${REAL_UID}"
+          test "${REAL_UID}" = "${UNIVERSE_ID}"
+
+      - name: Publish to Roblox (Open Cloud via HTTP)
+        if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.channel == 'live') || startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+          UNIVERSE_ID:   ${{ vars.UNIVERSE_ID }}
+          PLACE_ID:      ${{ vars.PLACE_ID }}
+        run: |
+          set -u  # no -e here; we handle errors manually for retries
+          DESC="ci:${GITHUB_SHA::7}, run:${GITHUB_RUN_ID}"
+          URL="https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published&versionDescription=${DESC}"
+
+          echo "POST $URL"
+          ATTEMPTS=6
+          DELAY=2
+
+          for TRY in $(seq 1 $ATTEMPTS); do
+            echo "::group::Attempt $TRY"
+            CODE=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST "$URL" \
+              -H "x-api-key: ${ROBLOX_API_KEY}" \
+              -H "Accept: application/json" \
+              -H "User-Agent: rbxcloud/ci" \
+              -H "RBX-Source: GitHubActions" \
+              -H "RBX-Client-Build: Rojo-CI" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @build/RobloxSoccer.rbxlx || echo 000)
+
+            echo "HTTP $CODE"
+            cat /tmp/resp.json || true
+            echo "::endgroup::"
+
+            # success
+            if [ "$CODE" = "200" ] || [ "$CODE" = "202" ]; then
+              echo "✅ Publish succeeded."
+              exit 0
+            fi
+
+            # transient: 409 busy, 429 rate, or any 5xx → backoff + retry
+            case "$CODE" in
+              409|429|5??)
+                JITTER=$((RANDOM % 3))
+                SLEEP=$((DELAY + JITTER))
+                echo "Transient $CODE; retrying in ${SLEEP}s..."
+                sleep "$SLEEP"
+                DELAY=$((DELAY * 2))
+                ;;
+              *)
+                echo "❌ Hard failure $CODE. Not retrying."
+                exit 1
+                ;;
+            esac
+          done
+
+          echo "❌ Gave up after $ATTEMPTS attempts."
+          exit 1
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: place
+          path: build/RobloxSoccer.rbxlx

@@ -1,0 +1,8 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type": "run", "cmd": "aftman install" },
+    { "type": "run", "cmd": "stylua src" },
+    { "type": "run", "cmd": "selene src" }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type": "run", "cmd": "stylua --version" },
+    { "type": "run", "cmd": "selene --version" },
+    { "type": "run", "cmd": "stylua src" },
+    { "type": "run", "cmd": "selene src" }
+  ]
+}

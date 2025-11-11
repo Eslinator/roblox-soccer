@@ -1,0 +1,9 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type": "run", "cmd": "which aftman || true" },
+    { "type": "run", "cmd": "aftman --version || true" },
+    { "type": "run", "cmd": "echo $PATH" },
+    { "type": "run", "cmd": "ls -ld ~/.aftman ~/.aftman/bin || true; ls -1 ~/.aftman/bin 2>/dev/null || true" }
+  ]
+}

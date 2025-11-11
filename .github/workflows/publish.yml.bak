@@ -1,0 +1,99 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "dry or live"
+        default: "live"
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # We use headers + API key; no special GITHUB permissions needed here.
+    permissions:
+  contents: read
+
+    env:
+      ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+      UNIVERSE_ID:   ${{ vars.UNIVERSE_ID }}
+      PLACE_ID:      ${{ vars.PLACE_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq curl unzip
+
+      - name: Install Rojo (latest)
+        run: |
+          set -euo pipefail
+          ver="7.6.1"
+          curl -fsSL -o rojo.zip "https://github.com/rojo-rbx/rojo/releases/download/v${ver}/rojo-${ver}-linux-x86_64.zip"
+          unzip -o rojo.zip
+          sudo mv rojo /usr/local/bin/rojo
+          rojo --version
+
+      - name: Build place
+        run: |
+          mkdir -p build
+          rojo build -o build/RobloxSoccer.rbxlx
+
+      - name: Publish to Roblox (Open Cloud via HTTP)
+        if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.channel == 'live') || startsWith(github.ref, 'refs/tags/v') }}
+        shell: bash
+        run: |
+          set -u  # no -e, we implement our own retry control
+          DESC="ci:${GITHUB_SHA:0:7}, run:${GITHUB_RUN_ID}"
+          URL="https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published&versionDescription=${DESC}"
+          echo "POST $URL"
+
+          attempts=6
+          delay=2
+
+          for try in $(seq 1 $attempts); do
+            echo "::group::Attempt $try"
+            code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST "$URL" \
+              -H "x-api-key: ${ROBLOX_API_KEY}" \
+              -H "Accept: application/json" \
+              -H "User-Agent: rbxcloud/ci" \
+              -H "RBX-Source: GitHubActions" \
+              -H "RBX-Client-Build: Rojo-CI" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @build/RobloxSoccer.rbxlx \
+              --retry 5 --retry-all-errors --retry-delay 2 --max-time 120 || echo 000)
+            echo "HTTP $code"
+            cat /tmp/resp.json || true
+            echo "::endgroup::"
+
+            # success
+            if [[ "$code" == "200" || "$code" == "202" ]]; then
+              echo "✅ Publish succeeded"
+              exit 0
+            fi
+
+            # treat 000/408/409/425/5xx as transient
+            if [[ "$code" == "000" || "$code" == "408" || "$code" == "409" || "$code" == "425" || "$code" =~ ^5 ]]; then
+              sleep $((delay + (RANDOM % 3)))
+              delay=$((delay * 2))
+              continue
+            fi
+
+            # rate limit
+            if [[ "$code" == "429" ]]; then
+              sleep $((delay + 5))
+              delay=$((delay + 5))
+              continue
+            fi
+
+            echo "❌ Hard failure $code. Not retrying."
+            exit 1
+          done
+
+          echo "❌ Gave up after $attempts attempts."
+          exit 1
