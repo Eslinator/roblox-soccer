@@ -1,2 +1,5 @@
 std = "roblox"
 exclude = ["Packages/**", "DevPackages/**"]
+
+[lints]
+unused_variable = "allow"
