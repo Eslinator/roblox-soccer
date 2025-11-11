@@ -4,10 +4,9 @@ on:
     inputs:
       channel:
         description: "dry (build only) or live (build + publish)"
-        required: false
         default: "dry"
   push:
-    tags: ['v*']  # tag v0.1.0 to live publish
+    tags: ['v*']   # tag v0.1.0 to live publish
 
 jobs:
   publish:
@@ -20,31 +19,13 @@ jobs:
         run: |
           set -euxo pipefail
           sudo apt-get update -y
-          sudo apt-get install -y unzip jq curl tar
+          sudo apt-get install -y unzip curl jq ca-certificates golang
 
-      - name: Install Rojo (auto-detect asset)
+      - name: Install Rojo (latest)
         run: |
           set -euxo pipefail
-          # Try preferred pattern, then fallbacks
-          ROJO_URL=$(
-            curl -fsSL https://api.github.com/repos/rojo-rbx/rojo/releases/latest \
-            | jq -r '
-                .assets[]
-                | select(.name|test("linux-x86_64\\.zip$"))
-                | .browser_download_url
-              ' | head -n1
-          )
-          if [ -z "$ROJO_URL" ]; then
-            ROJO_URL=$(
-              curl -fsSL https://api.github.com/repos/rojo-rbx/rojo/releases/latest \
-              | jq -r '
-                  .assets[]
-                  | select(.name|test("linux.*\\.zip$") and (test("aarch|arm")==false))
-                  | .browser_download_url
-                ' | head -n1
-            )
-          fi
-          echo "Rojo URL: ${ROJO_URL}"
+          ROJO_URL="$(curl -fsSL https://api.github.com/repos/rojo-rbx/rojo/releases/latest \
+            | jq -r '.assets[] | select(.name|test("linux.*(x86_64|amd64).*\\.zip$")) | .browser_download_url' | head -n1)"
           test -n "$ROJO_URL"
           TMP="$(mktemp -d)"; cd "$TMP"
           curl -fsSL -o rojo.zip "$ROJO_URL"
@@ -53,28 +34,11 @@ jobs:
           sudo install -m 755 "$ROJO_BIN" /usr/local/bin/rojo
           rojo --version
 
-      - name: Install rbxcloud (auto-detect asset)
+      - name: Install rbxcloud (build from source)
         run: |
           set -euxo pipefail
-          RBC_URL=$(
-            curl -fsSL https://api.github.com/repos/Sleitnick/rbxcloud/releases/latest \
-            | jq -r '
-                .assets[]
-                | select(.name|test("linux.*(x86_64|amd64).*(zip|tar\\.gz)$"))
-                | .browser_download_url
-              ' | head -n1
-          )
-          echo "rbxcloud URL: ${RBC_URL}"
-          test -n "$RBC_URL"
-          TMP="$(mktemp -d)"; cd "$TMP"
-          curl -fsSL -o rbc.file "$RBC_URL"
-          case "$RBC_URL" in
-            *.zip) unzip -o rbc.file ;;
-            *.tar.gz) tar -xzf rbc.file ;;
-            *) echo "Unknown rbxcloud archive format" >&2; exit 1 ;;
-          esac
-          RBC_BIN="$(find . -type f -name rbxcloud -perm -u+x | head -n1)"
-          sudo install -m 755 "$RBC_BIN" /usr/local/bin/rbxcloud
+          GOBIN="$HOME/go/bin" GOPATH="$HOME/go" go install github.com/Sleitnick/rbxcloud/cmd/rbxcloud@latest
+          sudo install -m 755 "$HOME/go/bin/rbxcloud" /usr/local/bin/rbxcloud
           rbxcloud --version
 
       - name: Build place
