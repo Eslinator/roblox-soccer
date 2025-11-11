@@ -6,7 +6,7 @@ on:
         description: "dry (build only) or live (build + publish)"
         default: "dry"
   push:
-    tags: ['v*']   # tag v0.1.0 to live publish
+    tags: ['v*']
 
 jobs:
   publish:
@@ -42,7 +42,7 @@ jobs:
           mkdir -p build
           rojo build -o build/RobloxSoccer.rbxlx
 
-      # ---- DIAG: verify key + IDs before publishing ----
+      # ---- Sanity: detect real universe from place; verify permissions ----
       - name: Sanity check (IDs & key)
         if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.channel == 'live') || startsWith(github.ref, 'refs/tags/v') }}
         env:
@@ -52,15 +52,29 @@ jobs:
         run: |
           set -euxo pipefail
           echo "UNIVERSE_ID=${UNIVERSE_ID}  PLACE_ID=${PLACE_ID}"
-          # List places under the universe; ensure our PLACE_ID is in the response
-          CODE=$(curl -sS -o /tmp/list.json -w "%{http_code}" \
-            -H "x-api-key: ${ROBLOX_API_KEY}" \
-            -H "Accept: application/json" \
+
+          # 1) Ask Open Cloud which universe actually owns this place
+          CODE1=$(curl -sS -o /tmp/u.json -w "%{http_code}" \
+            -H "x-api-key: ${ROBLOX_API_KEY}" -H "Accept: application/json" \
+            "https://apis.roblox.com/universes/v1/places/${PLACE_ID}/universe")
+          echo "Universe-by-place HTTP ${CODE1}"; cat /tmp/u.json || true
+          test "${CODE1}" = "200"
+          REAL_UID=$(jq -r .universeId /tmp/u.json)
+          echo "REAL_UNIVERSE_ID=${REAL_UID}"
+
+          # 2) Ensure the provided UNIVERSE_ID matches the real one
+          if [ "${REAL_UID}" != "${UNIVERSE_ID}" ]; then
+            echo "Mismatch: repo UNIVERSE_ID=${UNIVERSE_ID} but real=${REAL_UID}"
+            exit 2
+          fi
+
+          # 3) List places in that universe to confirm read permission and presence
+          CODE2=$(curl -sS -o /tmp/list.json -w "%{http_code}" \
+            -H "x-api-key: ${ROBLOX_API_KEY}" -H "Accept: application/json" \
             "https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places")
-          echo "List places HTTP ${CODE}"; cat /tmp/list.json || true
-          test "${CODE}" = "200"
-          # Fail early if PLACE_ID not found in that universe
-          jq -e --arg pid "$PLACE_ID" '.data[]?.id|tostring == $pid' /tmp/list.json >/dev/null
+          echo "List places HTTP ${CODE2}"; cat /tmp/list.json || true
+          test "${CODE2}" = "200"
+          jq -e --arg pid "${PLACE_ID}" '.data[]?.id|tostring == $pid' /tmp/list.json >/dev/null
 
       # ---- LIVE publish (universe-scoped endpoint) ----
       - name: Publish to Roblox (Open Cloud via HTTP)
@@ -72,6 +86,7 @@ jobs:
         run: |
           set -euxo pipefail
           URL="https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published&versionDescription=CI"
+          echo "POST $URL"
           HTTP_CODE=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
             -X POST "$URL" \
             -H "x-api-key: ${ROBLOX_API_KEY}" \
