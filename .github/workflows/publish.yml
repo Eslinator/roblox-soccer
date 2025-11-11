@@ -42,17 +42,38 @@ jobs:
           mkdir -p build
           rojo build -o build/RobloxSoccer.rbxlx
 
-      # LIVE publish only when channel=live or a v* tag is pushed
+      # ---- DIAG: verify key + IDs before publishing ----
+      - name: Sanity check (IDs & key)
+        if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.channel == 'live') || startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+          UNIVERSE_ID:   ${{ vars.UNIVERSE_ID }}
+          PLACE_ID:      ${{ vars.PLACE_ID }}
+        run: |
+          set -euxo pipefail
+          echo "UNIVERSE_ID=${UNIVERSE_ID}  PLACE_ID=${PLACE_ID}"
+          # List places under the universe; ensure our PLACE_ID is in the response
+          CODE=$(curl -sS -o /tmp/list.json -w "%{http_code}" \
+            -H "x-api-key: ${ROBLOX_API_KEY}" \
+            -H "Accept: application/json" \
+            "https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places")
+          echo "List places HTTP ${CODE}"; cat /tmp/list.json || true
+          test "${CODE}" = "200"
+          # Fail early if PLACE_ID not found in that universe
+          jq -e --arg pid "$PLACE_ID" '.data[]?.id|tostring == $pid' /tmp/list.json >/dev/null
+
+      # ---- LIVE publish (universe-scoped endpoint) ----
       - name: Publish to Roblox (Open Cloud via HTTP)
         if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.channel == 'live') || startsWith(github.ref, 'refs/tags/v') }}
         env:
           ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
-          PLACE_ID: ${{ vars.PLACE_ID }}
+          UNIVERSE_ID:   ${{ vars.UNIVERSE_ID }}
+          PLACE_ID:      ${{ vars.PLACE_ID }}
         run: |
           set -euxo pipefail
-          # POST binary .rbxlx to Upload Place Version
+          URL="https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published&versionDescription=CI"
           HTTP_CODE=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
-            -X POST "https://apis.roblox.com/universes/v1//places//versions?versionType=Published&versionDescription=CI" \
+            -X POST "$URL" \
             -H "x-api-key: ${ROBLOX_API_KEY}" \
             -H "Accept: application/json" \
             -H "User-Agent: rbxcloud/ci" \
