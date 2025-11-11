@@ -1,0 +1,23 @@
+name: CI
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Aftman
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/LPGhatguy/aftman/main/scripts/install.sh | bash
+          echo "$HOME/.aftman/bin" >> $GITHUB_PATH
+      - name: Install tools
+        run: aftman install
+      - name: Build place
+        run: rojo build -o build/RobloxSoccer.rbxlx
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: place
+          path: build/RobloxSoccer.rbxlx
