@@ -1,0 +1,72 @@
+name: Publish
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "dry (build only) or live (build + publish)"
+        required: false
+        default: "dry"
+  push:
+    tags: ['v*']  # tagging v0.1.0 will do a live publish
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install Rojo (same robust method as CI)
+      - name: Install Rojo
+        run: |
+          set -euxo pipefail
+          ROJO_VERSION=7.6.1
+          TMP="$(mktemp -d)"
+          cd "$TMP"
+          curl -fsSL -o rojo.zip "https://github.com/rojo-rbx/rojo/releases/download/v${ROJO_VERSION}/rojo-${ROJO_VERSION}-linux-x86_64.zip"
+          sudo apt-get update -y
+          sudo apt-get install -y unzip
+          unzip -o rojo.zip
+          ROJO_BIN="$(find . -type f -name rojo -perm -u+x | head -n1)"
+          sudo install -m 755 "$ROJO_BIN" /usr/local/bin/rojo
+          rojo --version
+
+      # Install rbxcloud (Open Cloud CLI)
+      - name: Install rbxcloud
+        run: |
+          set -euxo pipefail
+          RBC_VERSION=0.17.0
+          TMP="$(mktemp -d)"
+          cd "$TMP"
+          curl -fsSL -o rbxcloud.zip "https://github.com/Sleitnick/rbxcloud/releases/download/v${RBC_VERSION}/rbxcloud-${RBC_VERSION}-linux-x86_64.zip"
+          sudo apt-get install -y unzip
+          unzip -o rbxcloud.zip
+          RBC_BIN="$(find . -type f -name rbxcloud -perm -u+x | head -n1)"
+          sudo install -m 755 "$RBC_BIN" /usr/local/bin/rbxcloud
+          rbxcloud --version
+
+      - name: Build place
+        run: |
+          mkdir -p build
+          rojo build -o build/RobloxSoccer.rbxlx
+
+      - name: Publish to Roblox (Open Cloud)
+        if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.channel == 'live') || startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+          UNIVERSE_ID: ${{ vars.UNIVERSE_ID }}
+          PLACE_ID: ${{ vars.PLACE_ID }}
+        run: |
+          set -euxo pipefail
+          rbxcloud experience publish \
+            --api-key "$ROBLOX_API_KEY" \
+            --universe-id "$UNIVERSE_ID" \
+            --place-id "$PLACE_ID" \
+            --file "build/RobloxSoccer.rbxlx" \
+            --universe-asset-type Place \
+            --publish-policy Latest
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: place
+          path: build/RobloxSoccer.rbxlx
