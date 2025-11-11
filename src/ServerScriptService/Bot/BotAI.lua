@@ -28,33 +28,38 @@ end
 
 function BotAI:step(dt)
 	if not self.hum or not self.root then return end
-	self._accum += dt
-	self._retarget += dt
+	self._accum = self._accum + dt
+	self._retarget = self._retarget + dt
 	if self._accum < Constants.BOT.TICK then return end
 	self._accum = 0
 
 	local ball = getBall()
 	if not ball then return end
 
-	-- Seek ball
 	local botPos = self.root.Position
 	local ballPos = ball.Position
 	local dist = distance(botPos, ballPos)
 
-	-- Move toward ball
-	if dist > Constants.BOT.KICK_RANGE then
-		self.hum.WalkSpeed = Constants.BOT.MAX_SPEED
-		self.hum:MoveTo(ballPos)
+	-- Predictive intercept: estimate where the ball will be shortly
+	local ballVel = ball.AssemblyLinearVelocity or Vector3.zero
+	local botSpeed = Constants.BOT.MAX_SPEED
+	local t = math.clamp(dist / math.max(botSpeed, 0.01), 0.2, 0.8)
+	local predicted = ballPos + ballVel * t
+
+	-- Move toward predicted intercept point until in kick range
+	if (botPos - ballPos).Magnitude > Constants.BOT.KICK_RANGE then
+		self.hum.WalkSpeed = botSpeed
+		self.hum:MoveTo(predicted)
 		return
 	end
 
 	-- Kick/dribble on contact range (server authority)
 	local dir = (ballPos - botPos)
-	if dir.Magnitude > 0 then dir = dir.Unit else return end
+	if dir.Magnitude <= 0 then return end
+	dir = dir.Unit
 	local power = Constants.BOT.KICK_POWER
-	-- Aim toward away goal (positive X)
 	local goalDir = (Constants.AWAY_GOAL_POS - ballPos).Unit
-	local impulse = (dir + goalDir) * (power)
+	local impulse = (dir + goalDir) * power
 	local lv = Instance.new("LinearVelocity")
 	lv.Name = "BotKickLV"
 	lv.VectorVelocity = impulse
