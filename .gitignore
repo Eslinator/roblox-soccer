@@ -1,7 +1,12 @@
-build/
-Packages/
-.tmp/
-.DS_Store
-*.rbxl
-*.rbxlx
-*.rbxm
+# Build/artifactsout.rbxlx
+.connector/
+*.rbxlx.lock
+# Temp/debug/backups
+*.bak
+*.bak*
+*.tmp
+*.log
+# Generated plans/scripts
+plans/
+bot/
+publish-local-retry.sh
