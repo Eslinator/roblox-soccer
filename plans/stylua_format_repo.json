@@ -1,9 +1,0 @@
-{
-  "dry_run": false,
-  "steps": [
-    { "type":"run","cmd":"stylua src" },
-    { "type":"validate","checks": [
-      { "op":"cmd_success","cmd":"git diff --quiet || true" }
-    ]}
-  ]
-}
