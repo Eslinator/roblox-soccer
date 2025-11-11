@@ -23,7 +23,7 @@ ClientPing.OnServerInvoke = function(player, payload)
 	if not RateLimiter:allowed(RateLimiter:getKey(player),"ClientPing",{calls=3, per=1}) then
 		return { ok=false, err="rate_limited" }
 	end
-	return { ok=true, serverTime=os.clock(), echo=payload }
+	return { ok=true, serverTime=time(), echo=payload }
 end
 
 RequestJoin.OnServerInvoke = function(player)

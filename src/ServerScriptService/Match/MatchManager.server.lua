@@ -44,7 +44,7 @@ local function start()
 				MatchStateChanged:FireAllClients({ phase = Phase.Value, timeLeft = TimeLeft.Value })
 				print("[Match] TimeLeft:", TimeLeft.Value)
 			end
-			wait(1)
+			task.wait(1)
 		else
 			setPhase("Finished")
 			running = false
@@ -53,7 +53,7 @@ local function start()
 end
 
 -- Autostart shortly after server boot
-spawn(function()
-	wait(2)
+task.spawn(function()
+	task.wait(2)
 	start()
 end)

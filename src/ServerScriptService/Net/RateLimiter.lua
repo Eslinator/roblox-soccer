@@ -9,7 +9,7 @@ end
 
 function RateLimiter:allowed(key, name, limits)
 	limits = limits or DEFAULT_LIMITS
-	local now = os.clock()
+	local now = time()
 	buckets[key] = buckets[key] or {}
 	local b = buckets[key][name]
 	if not b or now - b.windowStart >= limits.per then
@@ -17,7 +17,7 @@ function RateLimiter:allowed(key, name, limits)
 		buckets[key][name] = b
 	end
 	if b.calls < limits.calls then
-		b.calls += 1
+		b.calls = b.calls + 1
 		return true
 	else
 		return false
