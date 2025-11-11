@@ -14,7 +14,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     # We use headers + API key; no special GITHUB permissions needed here.
-    permissions: {}
+    permissions:
+  contents: read
 
     env:
       ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
