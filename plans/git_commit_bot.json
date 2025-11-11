@@ -1,0 +1,25 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type": "git_ops",
+      "ops": [
+        { "op": "ensure_repo" },
+        { "op": "create_branch", "name": "bot/setup-connector", "base": "main", "if_exists": "checkout" },
+        { "op": "add", "paths": [
+          "src/ServerScriptService/Bot/BotAI.lua",
+          "src/ServerScriptService/Bot/BotController.server.lua",
+          "src/ServerScriptService/Match/Ball.server.lua"
+        ] },
+        { "op": "commit", "message": "feat(bot): server-authority bot AI and ball spawner" },
+        { "op": "status" }
+      ]
+    },
+    { "type": "validate",
+      "checks": [
+        { "op": "cmd_success",  "cmd": "git rev-parse --is-inside-work-tree" },
+        { "op": "cmd_contains", "cmd": "git rev-parse --abbrev-ref HEAD", "substr": "bot/setup-connector" },
+        { "op": "cmd_contains", "cmd": "git log -1 --pretty=%s", "substr": "feat(bot): server-authority bot AI and ball spawner" }
+      ]
+    }
+  ]
+}

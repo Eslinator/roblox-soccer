@@ -1,0 +1,15 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type":"write_files", "files": {
+      "src/StarterPlayer/StarterPlayerScripts/MatchHud.client.lua": {
+        "encoding":"utf8",
+        "content":"local Players = game:GetService(\"Players\")\nlocal ReplicatedStorage = game:GetService(\"ReplicatedStorage\")\nlocal player = Players.LocalPlayer\n\nlocal Remotes = ReplicatedStorage:WaitForChild(\"Remotes\")\nlocal MatchStateChanged = Remotes:WaitForChild(\"MatchStateChanged\")\nlocal ClientPing = Remotes:WaitForChild(\"ClientPing\")\n\nlocal screen = Instance.new(\"ScreenGui\"); screen.Name = \"MatchHUD\"; screen.ResetOnSpawn = false; screen.Parent = player:WaitForChild(\"PlayerGui\")\nlocal label = Instance.new(\"TextLabel\"); label.Size = UDim2.new(0, 420, 0, 28); label.Position = UDim2.new(0, 8, 0, 8)\nlabel.BackgroundTransparency = 0.2; label.BackgroundColor3 = Color3.fromRGB(0,0,0); label.TextColor3 = Color3.fromRGB(255,255,255); label.Font = Enum.Font.GothamBold; label.TextSize = 18; label.Parent = screen\n\nlocal state = { phase = \"Init\", timeLeft = 0, home = 0, away = 0 }\nlocal function render()\n\tlabel.Text = string.format(\"%s | Time: %ds | Score %d - %d\", state.phase, state.timeLeft, state.home, state.away)\nend\n\nMatchStateChanged.OnClientEvent:Connect(function(payload)\n\tfor k,v in pairs(payload) do state[k] = v end\n\trender()\nend)\n\n-- Periodic ping to exercise rate-limited RemoteFunction\nspawn(function()\n\twhile true do\n\t\tlocal t0 = os.clock()\n\t\tlocal ok, res = pcall(function()\n\t\t\treturn ClientPing:InvokeServer({ clientTime = t0 })\n\t\tend)\n\t\tif ok and res and res.ok then\n\t\t\tlocal rtt = (os.clock() - t0) * 1000\n\t\t\tlabel.Text = label.Text .. string.format(\" | ping: %dms\", rtt)\n\t\tend\n\t\twait(5)\n\tend\nend)\n\nrender()\n"
+      }
+    }},
+    { "type":"validate", "checks":[
+      { "op":"file_exists","path":"src/StarterPlayer/StarterPlayerScripts/MatchHud.client.lua" },
+      { "op":"text_contains","path":"src/StarterPlayer/StarterPlayerScripts/MatchHud.client.lua","substr":"MatchHUD" }
+    ]}
+  ]
+}

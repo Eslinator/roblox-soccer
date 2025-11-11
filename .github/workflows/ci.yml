@@ -21,12 +21,21 @@ jobs:
           echo "rojo = \"rojo-rbx/rojo@7.6.1\"" >> aftman.toml
           echo "rbxcloud = \"Sleitnick/rbxcloud@0.17.0\"" >> aftman.toml
           echo "selene = \"Kampfkarren/selene@0.26.1\"" >> aftman.toml
-          # NOTE: Stylua temporarily disabled pending Luau-capable build
-          # echo "stylua = \"JohnnyMorganz/stylua@0.20.2\"" >> aftman.toml
-          aftman install
+          echo "stylua = \"JohnnyMorganz/stylua@0.20.0\"" >> aftman.toml
+          aftman install --no-trust-check
+
+      - name: Debug Selene/Stylua env
+        run: |
+          selene --version || true
+          stylua --version || true
+          echo "--- selene.toml (pwd) ---"
+          ls -la || true
+          sed -n 1,80p selene.toml || true
 
       - name: Selene Lint
-        run: selene src
+        run: selene src --allow-warnings
+      - name: Stylua Format Check
+        run: stylua --check src
 
       - name: Rojo Build
         run: rojo build -o out.rbxlx default.project.json

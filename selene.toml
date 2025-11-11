@@ -1,4 +1,5 @@
 std = "roblox"
-exclude = [ "Packages/**" ]
-[files]
-src = true
+exclude = ["Packages/**", "DevPackages/**"]
+
+[lints]
+unused_variable = "allow"

@@ -1,0 +1,19 @@
+{
+  "dry_run": false,
+  "steps": [
+    { "type": "git_ops",
+      "ops": [
+        { "op": "ensure_repo" },
+        { "op": "create_branch", "name": "bot/setup-connector", "base": "main", "if_exists": "checkout" },
+        { "op": "add", "paths": ["RELEASE_NOTES_v0.2.0.md"] },
+        { "op": "commit", "message": "docs: add release notes for v0.2.0" },
+        { "op": "status" }
+      ]
+    },
+    { "type": "validate",
+      "checks": [
+        { "op": "cmd_contains", "cmd": "git log -1 --pretty=%s", "substr": "docs: add release notes for v0.2.0" }
+      ]
+    }
+  ]
+}
