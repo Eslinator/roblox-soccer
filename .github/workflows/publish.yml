@@ -11,7 +11,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions: { contents: read }
+    permissions:
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
 
@@ -48,15 +50,14 @@ jobs:
           PLACE_ID: ${{ vars.PLACE_ID }}
         run: |
           set -euxo pipefail
-          # POST binary .rbxlx to the Open Cloud "Upload Place Version" endpoint
-          # Docs: POST https://apis.roblox.com/universes/v1/places/{placeId}/versions?versionType=Published
+          # POST binary .rbxlx to Upload Place Version
           HTTP_CODE=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
-  -H "Accept: application/json" \
-  -H "User-Agent: rbxcloud/ci" \
-  -H "RBX-Source: GitHubActions" \
-  -H "RBX-Client-Build: Rojo-CI" \
-            -X POST "https://apis.roblox.com/universes/v1/places//versions?versionType=Published&versionDescription=CI" \
+            -X POST "https://apis.roblox.com/universes/v1/places/${PLACE_ID}/versions?versionType=Published&versionDescription=CI" \
             -H "x-api-key: ${ROBLOX_API_KEY}" \
+            -H "Accept: application/json" \
+            -H "User-Agent: rbxcloud/ci" \
+            -H "RBX-Source: GitHubActions" \
+            -H "RBX-Client-Build: Rojo-CI" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @build/RobloxSoccer.rbxlx)
           echo "HTTP ${HTTP_CODE}"
