@@ -1,6 +1,10 @@
 name: Publish
 
 on:
+  push:
+    paths:
+      - 'src/**'
+      - 'default.project.json'
   workflow_dispatch:
     inputs:
       channel:
@@ -8,10 +12,9 @@ on:
         required: true
         default: "dry"
         type: choice
-        options: [dry, live]
-  push:
-    tags:
-      - "v*.*.*"
+        options:
+          - dry
+          - live
 
 permissions:
   contents: read
@@ -50,17 +53,6 @@ jobs:
           sudo mv rojo /usr/local/bin/rojo
           rojo --version
 
-      - name: Install rbxcloud (latest)
-        run: |
-          set -euxo pipefail
-          curl -fsSL https://api.github.com/repos/Sleitnick/rbxcloud/releases/latest \
-            | jq -r '.assets[] | select(.name|test("linux.*(x86_64|amd64).*(zip|tar\\.gz)$")) | .browser_download_url' \
-            | head -n1 | xargs -I{} curl -fsSL -o rbxcloud.tgz {}
-          tar -xzf rbxcloud.tgz || unzip -o rbxcloud.tgz || true
-          BIN="$(find . -maxdepth 2 -type f -name rbxcloud | head -n1)"
-          sudo mv "$BIN" /usr/local/bin/rbxcloud
-          rbxcloud --version
-
       - name: Prepare build folder
         run: mkdir -p build
 
@@ -70,13 +62,14 @@ jobs:
       - name: Sanity check (IDs only)
         run: |
           set -euxo pipefail
+          test -s build/RobloxSoccer.rbxlx
           test -n "${UNIVERSE_ID}"
           test -n "${PLACE_ID}"
 
-      - name: Publish to Roblox (Open Cloud with retries)
+      - name: Publish to Roblox (Open Cloud via HTTP with retries)
         if: ${{ env.CHANNEL == 'live' || startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          set -u  # we handle errors manually (no -e)
+          set -u  # (no -e; we retry manually)
           FILE="build/RobloxSoccer.rbxlx"
 
           attempt() {
@@ -94,27 +87,22 @@ jobs:
           BACKOFF=(5 15 30 60 90 120 180 240 300 360 420 480)
 
           for i in $(seq 1 ${#BACKOFF[@]}); do
-            echo "Attempt ${i}/${#BACKOFF[@]} …"
             CODE=$(attempt)
             echo "HTTP ${CODE}"
             cat /tmp/resp.json || true
 
             if [ "$CODE" = "200" ] || [ "$CODE" = "202" ]; then
-              echo "✅ Publish accepted"
               exit 0
             fi
 
             if [ "$CODE" = "409" ] || [ "$CODE" = "000" ]; then
-              echo "Transient (${CODE}). Backing off ${BACKOFF[$((i-1))]}s…"
               sleep "${BACKOFF[$((i-1))]}"
               continue
             fi
 
-            echo "❌ Hard failure ${CODE}. Not retrying."
             exit 1
           done
 
-          echo "❌ Exhausted retries."
           exit 1
 
       - name: Upload artifact
