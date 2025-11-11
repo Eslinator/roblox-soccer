@@ -66,17 +66,20 @@ jobs:
           ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
           UNIVERSE_ID:   ${{ vars.UNIVERSE_ID }}
           PLACE_ID:      ${{ vars.PLACE_ID }}
-        run: |
-          set -u  # no -e here; we handle errors manually for retries
+                run: |
+          set -u  # handle errors manually for retry logic
           DESC="ci:${GITHUB_SHA::7}, run:${GITHUB_RUN_ID}"
           URL="https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published&versionDescription=${DESC}"
 
           echo "POST $URL"
+
           ATTEMPTS=6
           DELAY=2
 
           for TRY in $(seq 1 $ATTEMPTS); do
             echo "::group::Attempt $TRY"
+
+            # Let curl retry on transport errors too
             CODE=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST "$URL" \
               -H "x-api-key: ${ROBLOX_API_KEY}" \
               -H "Accept: application/json" \
@@ -84,26 +87,35 @@ jobs:
               -H "RBX-Source: GitHubActions" \
               -H "RBX-Client-Build: Rojo-CI" \
               -H "Content-Type: application/octet-stream" \
-              --data-binary @build/RobloxSoccer.rbxlx || echo 000)
+              --data-binary @build/RobloxSoccer.rbxlx \
+              --retry 5 --retry-all-errors --retry-delay 2 --max-time 90 \
+              || echo 000)
 
             echo "HTTP $CODE"
             cat /tmp/resp.json || true
             echo "::endgroup::"
 
-            # success
+            # Success
             if [ "$CODE" = "200" ] || [ "$CODE" = "202" ]; then
               echo "✅ Publish succeeded."
               exit 0
             fi
 
-            # transient: 409 busy, 429 rate, or any 5xx → backoff + retry
+            # Treat 000 (no response), 408, 409, 425, and 5xx as transient
             case "$CODE" in
-              409|429|5??)
+              000|408|409|425|5??)
                 JITTER=$((RANDOM % 3))
                 SLEEP=$((DELAY + JITTER))
                 echo "Transient $CODE; retrying in ${SLEEP}s..."
                 sleep "$SLEEP"
                 DELAY=$((DELAY * 2))
+                ;;
+              429)
+                # explicit backoff for rate-limit
+                SLEEP=$((DELAY + 5))
+                echo "Rate limited; retrying in ${SLEEP}s..."
+                sleep "$SLEEP"
+                DELAY=$((DELAY + 5))
                 ;;
               *)
                 echo "❌ Hard failure $CODE. Not retrying."
