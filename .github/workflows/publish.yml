@@ -3,10 +3,12 @@ on:
   workflow_dispatch:
     inputs:
       channel:
-        description: "dry (build only) or live (build + publish)"
-        default: "dry"
+        description: "dry or live"
+        required: false
+        default: "live"
   push:
-    tags: ['v*']
+    tags:
+      - 'v*.*.*'
 
 jobs:
   publish:
