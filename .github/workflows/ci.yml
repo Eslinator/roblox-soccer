@@ -20,10 +20,12 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y unzip
           unzip -o rojo.zip
-          # Find the 'rojo' binary wherever it extracted, install to PATH
           ROJO_BIN="$(find . -type f -name rojo -perm -u+x | head -n1)"
           sudo install -m 755 "$ROJO_BIN" /usr/local/bin/rojo
           rojo --version
+
+      - name: Prepare build dir
+        run: mkdir -p build
 
       - name: Build place
         run: rojo build -o build/RobloxSoccer.rbxlx
