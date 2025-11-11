@@ -1,6 +1,0 @@
-{
-  "dry_run": true,
-  "steps": [
-    { "type":"run", "cmd":"git push origin main" }
-  ]
-}

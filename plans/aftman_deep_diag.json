@@ -1,8 +1,0 @@
-{
-  "dry_run": false,
-  "steps": [
-    { "type": "run", "cmd": "cat aftman.toml" },
-    { "type": "run", "cmd": "AFTMAN_LOG=trace aftman install || true" },
-    { "type": "run", "cmd": "aftman --help | head -n 50 || true" }
-  ]
-}

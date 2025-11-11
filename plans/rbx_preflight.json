@@ -1,6 +1,0 @@
-{
-  "dry_run": true,
-  "steps": [
-    { "type": "rbx_preflight" }
-  ]
-}

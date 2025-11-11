@@ -5,3 +5,11 @@ Packages/
 *.rbxl
 *.rbxlx
 *.rbxm
+
+# Generated
+.connector/
+plans/
+*.jsonl
+*.rbxlx.lock
+*.bak*
+publish-local-retry.sh

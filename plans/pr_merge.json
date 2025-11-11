@@ -1,7 +1,0 @@
-{
-  "dry_run": false,
-  "steps": [
-    { "type":"run", "cmd":"gh pr merge 1 --squash --delete-branch --auto --admin || gh pr merge 1 --squash --delete-branch" },
-    { "type":"run", "cmd":"gh pr view 1 --json state,mergedAt,mergeCommit --jq '.state, .mergedAt, .mergeCommit.oid' || true" }
-  ]
-}

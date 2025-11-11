@@ -1,8 +1,0 @@
-{
-  "dry_run": false,
-  "steps": [
-    { "type":"run", "cmd":"gh pr view 1 --web || true" },
-    { "type":"run", "cmd":"gh pr view 1 --json number,state,isDraft,mergeStateStatus,headRefName,baseRefName,url" },
-    { "type":"run", "cmd":"gh pr checks 1 || true" }
-  ]
-}
