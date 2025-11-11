@@ -1,7 +1,0 @@
-{
-  "dry_run": false,
-  "steps": [
-    { "type":"run", "cmd":"gh api repos/:owner/:repo/branches/main -H 'Accept: application/vnd.github+json' | jq -r .commit.sha" },
-    { "type":"run", "cmd":"gh api repos/:owner/:repo/commits/$(gh api repos/:owner/:repo/branches/main -H 'Accept: application/vnd.github+json' | jq -r .commit.sha)/check-runs -H 'Accept: application/vnd.github+json' | jq -r '.check_runs[].name' || true" }
-  ]
-}

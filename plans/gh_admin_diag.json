@@ -1,8 +1,0 @@
-{
-  "dry_run": false,
-  "steps": [
-    { "type":"run", "cmd":"gh auth status || true" },
-    { "type":"run", "cmd":"gh repo view --json nameWithOwner,viewerPermission -q '.nameWithOwner+\" perm=\"+.viewerPermission'" },
-    { "type":"run", "cmd":"gh api repos/:owner/:repo -H 'Accept: application/vnd.github+json' | jq -r '.name+\" vis=\"+(.private|tostring)'" }
-  ]
-}
