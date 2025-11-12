@@ -2,35 +2,37 @@ name: Publish
 
 on:
   push:
-    tags: [ "v*" ]
     branches: [ "main" ]
+    tags: [ "v*" ]
     paths:
-      - 'src/**'
-      - 'default.project.json'
+      - "src/**"
+      - "default.project.json"
   workflow_dispatch:
     inputs:
       channel:
         description: "dry or live"
         required: true
-        default: "dry"
+        default: "live"
         type: choice
-        options: [dry, live]
+        options: [ dry, live ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ vars.PLACE_ID }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   publish:
-    timeout-minutes: 60
     name: publish
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
-      UNIVERSE_ID:    ${{ vars.UNIVERSE_ID }}
-      PLACE_ID:       ${{ vars.PLACE_ID }}
-      CHANNEL:        ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.channel || 'live' }}
-
+      UNIVERSE_ID: ${{ vars.UNIVERSE_ID }}
+      PLACE_ID: ${{ vars.PLACE_ID }}
+      CHANNEL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.channel || 'live' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,7 +43,7 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y curl unzip jq
 
-      - name: Install Rojo (latest)
+      - name: Install Rojo (pin 7.6.1)
         run: |
           set -euxo pipefail
           V="7.6.1"
@@ -54,7 +56,7 @@ jobs:
         run: mkdir -p build
 
       - name: Build place
-        run: rojo build -o build/RobloxSoccer.rbxlx
+        run: rojo build --output build/RobloxSoccer.rbxlx
 
       - name: Sanity check (IDs only)
         run: |
@@ -63,12 +65,11 @@ jobs:
           test -n "${UNIVERSE_ID}"
           test -n "${PLACE_ID}"
 
-      - name: Publish to Roblox (Open Cloud via HTTP with retries)
+      - name: Publish to Roblox (Open Cloud with retries)
         if: ${{ env.CHANNEL == 'live' || startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          set -u  # (no -e; we retry manually)
+          set -u
           FILE="build/RobloxSoccer.rbxlx"
-
           attempt() {
             curl -sS -o /tmp/resp.json -w '%{http_code}' -X POST \
               -H "x-api-key: ${ROBLOX_API_KEY}" \
@@ -80,26 +81,20 @@ jobs:
               --data-binary @"${FILE}" \
               "https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published&versionDescription=ci:${GITHUB_SHA::7},run:${GITHUB_RUN_ID}"
           }
-
-          BACKOFF=(5 15 30 60 90 120 180 240 300 360 420 480)
-
+          BACKOFF=(5 15 30 60 90 120 180 240 300)
           for i in $(seq 1 ${#BACKOFF[@]}); do
             CODE=$(attempt)
             echo "HTTP ${CODE}"
             cat /tmp/resp.json || true
-
             if [ "$CODE" = "200" ] || [ "$CODE" = "202" ]; then
               exit 0
             fi
-
             if [ "$CODE" = "409" ] || [ "$CODE" = "000" ]; then
               sleep "${BACKOFF[$((i-1))]}"
               continue
             fi
-
             exit 1
           done
-
           exit 1
 
       - name: Upload artifact
@@ -108,5 +103,3 @@ jobs:
         with:
           name: place
           path: build/RobloxSoccer.rbxlx
-permissions:
-  contents: read
