@@ -1,5 +1,7 @@
 {
   "name": "RobloxSoccer",
+  "servePort": 34873,
+  "servePlaceIds": [75007363352132],
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
@@ -8,7 +10,7 @@
     },
     "ServerScriptService": {
       "$className": "ServerScriptService",
-      "Scripts": { "$path": "src/server" }
+      "Bootstrap": { "$path": "src/server" }
     }
   }
 }
