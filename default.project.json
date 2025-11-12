@@ -10,7 +10,7 @@
     },
     "ServerScriptService": {
       "$className": "ServerScriptService",
-      "Bootstrap": { "$path": "src/server" }
+      "Server": { "$path": "src/server" }
     }
   }
 }
