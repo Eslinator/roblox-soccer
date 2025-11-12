@@ -7,7 +7,7 @@
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
       "GPTModules": { "$path": "src/gptmodules" },
-      "Shared": { "$path": "src/shared" }
+      "Shared":     { "$path": "src/shared" }
     },
     "ServerScriptService": {
       "$className": "ServerScriptService",
