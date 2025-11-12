@@ -2,11 +2,13 @@
   "name": "RobloxSoccer",
   "tree": {
     "$className": "DataModel",
-    "ReplicatedStorage": { "$path": "src/ReplicatedStorage" },
-    "ServerScriptService": { "$path": "src/ServerScriptService" },
-    "StarterPlayer": {
-      "$className": "StarterPlayer",
-      "StarterPlayerScripts": { "$path": "src/StarterPlayer/StarterPlayerScripts" }
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "GPTModules": { "$path": "src/gptmodules" }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Scripts": { "$path": "src/server" }
     }
   }
 }
