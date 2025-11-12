@@ -1,0 +1,9 @@
+{
+  "name": "gpt-bridge",
+  "version": "1.0.0",
+  "main": "bridge/server.js",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "4.18.2"
+  }
+}

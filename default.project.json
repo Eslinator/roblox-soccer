@@ -6,11 +6,19 @@
     "$className": "DataModel",
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
-      "GPTModules": { "$path": "src/gptmodules" }
+      "GPTModules": { "$path": "src/gptmodules" },
+      "Shared": { "$path": "src/shared" }
     },
     "ServerScriptService": {
       "$className": "ServerScriptService",
-      "Server": { "$path": "src/server" }
+      "Game": { "$path": "src/server" }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Client": { "$path": "src/client" }
+      }
     }
   }
 }
