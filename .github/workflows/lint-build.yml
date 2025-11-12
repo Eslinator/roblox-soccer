@@ -3,10 +3,13 @@ name: lint-build
 on:
   push:
     branches: [ "main" ]
+    # run when code or project file changes
     paths:
       - "src/**"
       - "default.project.json"
+      - ".github/workflows/lint-build.yml"
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
