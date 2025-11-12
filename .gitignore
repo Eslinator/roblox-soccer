@@ -13,3 +13,4 @@ plans/
 *.rbxlx.lock
 *.bak*
 publish-local-retry.sh
+.env
