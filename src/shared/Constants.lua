@@ -1,9 +1,8 @@
 -- ReplicatedStorage/Shared/Constants.lua
 local C = {}
 
-
 C.Match = {
-  DefaultTime = 300,  -- seconds
+  DefaultTime = 300,      -- seconds
   KickoffPhase = "PreGame",
 }
 
@@ -14,6 +13,11 @@ C.Physics = {
 
 C.UI = {
   Theme = "dark",
+}
+
+-- >>> New: bot tick rate used by BotAI
+C.Bot = {
+  TICK = 0.1,             -- seconds between AI updates (10 Hz)
 }
 
 return C
