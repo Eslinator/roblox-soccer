@@ -33,3 +33,12 @@ ensureInt("TimeLeft", 300)
 ensureInt("HomeScore", 0)
 ensureInt("AwayScore", 0)
 ensureString("Phase", "PreGame")
+
+print(("[MatchState init] TimeLeft=%d Home=%d Away=%d Phase=%s")
+  :format(
+    (matchState.TimeLeft :: IntValue).Value,
+    (matchState.HomeScore :: IntValue).Value,
+    (matchState.AwayScore :: IntValue).Value,
+    (matchState.Phase :: StringValue).Value
+  )
+)
